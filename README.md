@@ -1,57 +1,77 @@
-# Yandex Disk in Docker
+# Yandex Disk Shared
 
-This container runs the Yandex Disk Linux console client in the foreground, which matches Docker's process model better than starting the client as a background daemon.
+This repo packages the Yandex Disk Linux console client for deployment on `catarchy2` and preserves runtime state on the server under `/opt/yandex-disk-shared`.
 
-## Build
+## Runtime layout
 
-```bash
-docker compose build
+The deploy target is:
+
+```text
+/opt/yandex-disk-shared/
+  Dockerfile
+  docker-compose.yml
+  docker-entrypoint.sh
+  .env
+  config/
+    config.cfg
+    passwd
+  data/
 ```
 
-## Authorize the container
+`config/` and `data/` are intentionally server-local and ignored by git. The container reads the migrated `config.cfg` directly, so the old exclude list and proxy setting continue to apply.
+The same `config/` directory is also mounted at the client's default `~/.config/yandex-disk` path so legacy files like `iid` remain visible to the Yandex binary.
 
-Run the token flow once:
+## Local usage
+
+Create a local env file first:
+
+```bash
+cp .env.example .env
+```
+
+If you need a fresh token flow instead of migrating an old auth file:
 
 ```bash
 docker compose run --rm yandex-disk token
 ```
 
-The client prints a URL and a one-time code. Open that URL in your browser, log in to the correct Yandex account, and enter the code. The OAuth token is stored in `./config/passwd` on the host.
-
-## Start syncing
+Start the sync client:
 
 ```bash
-docker compose up -d
+docker compose up -d --build
 ```
 
-The local sync folder is `./data` on the host. The container maps it to `/data` and starts:
-
-```bash
-yandex-disk --no-daemon --dir=/data --auth=/config/passwd
-```
-
-## Useful commands
-
-See logs:
+Inspect logs:
 
 ```bash
 docker compose logs -f
 ```
 
-Run in read-only mode:
+## Deployment
 
-```bash
-YANDEX_READ_ONLY=true docker compose up -d
+Woodpecker deploys this repo to `catarchy2` over SSH and keeps the persistent state in `/opt/yandex-disk-shared/config` and `/opt/yandex-disk-shared/data`.
+
+The first migration should copy these from `catarchy`:
+
+```text
+/home/ubuntu/.config/yandex-disk/passwd
+/home/ubuntu/.config/yandex-disk/config.cfg
+/home/ubuntu/Yandex.Disk/
 ```
 
-Exclude directories:
+The migrated `config.cfg` should use container paths:
 
-```bash
-YANDEX_EXCLUDE_DIRS=Downloads,temp docker compose up -d
+```ini
+auth="/config/passwd"
+dir="/data"
+exclude-dirs="backup2,Mama,MyDoc,share,work,Мяу2,Meo2,Фотокамера,backup/qr/.git"
+proxy="no"
 ```
 
-## Notes
+## Aha
 
-- This image uses the official Yandex Linux console client repository described in the Yandex docs.
-- `yandex-disk setup` is not required here because the container passes the sync directory and auth file directly on the command line.
-- If you want files created on the host to keep your local UID and GID, run the container with `--user $(id -u):$(id -g)` or add an equivalent `user:` setting in Compose.
+For stateful infra in CI/CD, the clean split is:
+
+- Git stores the deploy recipe.
+- The server stores runtime state and secrets.
+- CI updates code and preserves stateful directories across deploys.

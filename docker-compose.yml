@@ -1,13 +1,27 @@
+name: yandex-disk-shared
+
 services:
   yandex-disk:
     build:
       context: .
-    container_name: yandex-disk
+    container_name: ${YANDEX_CONTAINER_NAME}
+    env_file:
+      - .env
+    user: "${YANDEX_UID}:${YANDEX_GID}"
     restart: unless-stopped
     environment:
+      HOME: /home/ubuntu
+      LANG: C.UTF-8
+      LC_ALL: C.UTF-8
       YANDEX_CONFIG_DIR: /config
+      YANDEX_CONFIG_FILE: /config/config.cfg
       YANDEX_SYNC_DIR: /data
       YANDEX_AUTH_FILE: /config/passwd
+      YANDEX_PROXY: ${YANDEX_PROXY}
+      YANDEX_EXCLUDE_DIRS: ${YANDEX_EXCLUDE_DIRS}
+      YANDEX_READ_ONLY: ${YANDEX_READ_ONLY}
+      YANDEX_OVERWRITE: ${YANDEX_OVERWRITE}
     volumes:
-      - ./config:/config
-      - ./data:/data
+      - ${YANDEX_HOST_CONFIG_DIR}:/config
+      - ${YANDEX_HOST_CONFIG_DIR}:/home/ubuntu/.config/yandex-disk
+      - ${YANDEX_HOST_DATA_DIR}:/data

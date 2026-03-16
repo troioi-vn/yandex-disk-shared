@@ -2,6 +2,7 @@
 set -eu
 
 CONFIG_DIR="${YANDEX_CONFIG_DIR:-/config}"
+CONFIG_FILE="${YANDEX_CONFIG_FILE:-${CONFIG_DIR}/config.cfg}"
 SYNC_DIR="${YANDEX_SYNC_DIR:-/data}"
 AUTH_FILE="${YANDEX_AUTH_FILE:-${CONFIG_DIR}/passwd}"
 PROXY="${YANDEX_PROXY:-}"
@@ -20,7 +21,7 @@ case "$COMMAND" in
         ;;
     run)
         shift || true
-        set -- --no-daemon "--dir=${SYNC_DIR}" "--auth=${AUTH_FILE}"
+        set -- --no-daemon "--config=${CONFIG_FILE}" "--dir=${SYNC_DIR}" "--auth=${AUTH_FILE}"
 
         if [ -n "$EXCLUDE_DIRS" ]; then
             set -- "$@" "--exclude-dirs=${EXCLUDE_DIRS}"
@@ -36,6 +37,20 @@ case "$COMMAND" in
 
         if [ "$OVERWRITE" = "true" ]; then
             set -- "$@" --overwrite
+        fi
+
+        exec yandex-disk "$@"
+        ;;
+    status|sync|stop|start)
+        shift || true
+        set -- "$COMMAND" "--config=${CONFIG_FILE}" "--dir=${SYNC_DIR}" "--auth=${AUTH_FILE}"
+
+        if [ -n "$EXCLUDE_DIRS" ]; then
+            set -- "$@" "--exclude-dirs=${EXCLUDE_DIRS}"
+        fi
+
+        if [ -n "$PROXY" ]; then
+            set -- "$@" "--proxy=${PROXY}"
         fi
 
         exec yandex-disk "$@"

@@ -10,7 +10,33 @@ EXCLUDE_DIRS="${YANDEX_EXCLUDE_DIRS:-}"
 READ_ONLY="${YANDEX_READ_ONLY:-false}"
 OVERWRITE="${YANDEX_OVERWRITE:-false}"
 
+read_config_value() {
+    key="$1"
+
+    if [ ! -f "$CONFIG_FILE" ]; then
+        return 0
+    fi
+
+    awk -F= -v search_key="$key" '
+        $1 == search_key {
+            value = substr($0, index($0, "=") + 1)
+            gsub(/^"/, "", value)
+            gsub(/"$/, "", value)
+            print value
+            exit
+        }
+    ' "$CONFIG_FILE"
+}
+
 mkdir -p "$CONFIG_DIR" "$SYNC_DIR"
+
+if [ -z "$EXCLUDE_DIRS" ]; then
+    EXCLUDE_DIRS="$(read_config_value "exclude-dirs")"
+fi
+
+if [ -z "$PROXY" ]; then
+    PROXY="$(read_config_value "proxy")"
+fi
 
 COMMAND="${1:-run}"
 

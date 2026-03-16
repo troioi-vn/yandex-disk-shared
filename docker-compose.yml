@@ -1,0 +1,13 @@
+services:
+  yandex-disk:
+    build:
+      context: .
+    container_name: yandex-disk
+    restart: unless-stopped
+    environment:
+      YANDEX_CONFIG_DIR: /config
+      YANDEX_SYNC_DIR: /data
+      YANDEX_AUTH_FILE: /config/passwd
+    volumes:
+      - ./config:/config
+      - ./data:/data

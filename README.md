@@ -129,7 +129,7 @@ If you are migrating from an existing setup, rewrite `config.cfg` for container 
 ```ini
 auth="/config/passwd"
 dir="/data"
-exclude-dirs="backup2,Mama,MyDoc,share,work,Мяу2,Meo2,Фотокамера,backup/qr/.git"
+exclude-dirs="folder1,folder2"
 proxy="no"
 ```
 
@@ -203,9 +203,8 @@ docker compose exec yandex-disk sh -lc 'tail -n 40 /data/.sync/cli.log'
 You should see lines like:
 
 ```text
-Exclude dir: work
-Exclude dir: MyDoc
-Exclude dir: Фотокамера
+Exclude dir: folder1
+Exclude dir: folder2
 ```
 
 If those lines are missing, the runtime path is not using the exclude list you think it is.

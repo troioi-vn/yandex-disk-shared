@@ -260,7 +260,3 @@ This repo is most useful if you are in one of these situations:
 - you want a reproducible Docker-based deployment instead of a desktop-session daemon
 - you need to preserve legacy identity/state while moving hosts
 - you want CI/CD to manage the deployment recipe without destroying sync state
-
-## Aha
-
-When runtime behavior disagrees with config, verify how the process is started before trusting the config file.

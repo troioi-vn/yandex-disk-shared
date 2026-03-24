@@ -21,7 +21,7 @@ This repo makes that setup reproducible.
 - persistent host-mounted config and sync directories
 - a container entrypoint that runs the client in the foreground
 - support for both fresh authorization and migration from an old host
-- a Woodpecker deployment flow for SSH-based server rollout
+- a Woodpecker deployment flow that can build once, push to your private registry, and deploy onto a target host
 - operational notes for logs, status checks, and common footguns
 
 ## Runtime model
@@ -92,6 +92,50 @@ docker compose logs -f
 docker compose exec yandex-disk yandex-disk status --config=/config/config.cfg --dir=/data --auth=/config/passwd
 ```
 
+## Workstation mode
+
+This repo also works as a local replacement for an OS-level Yandex Disk installation.
+
+Example local layout:
+
+- repo: `/home/user/Documents/yandex-disk-shared`
+- sync dir: `/home/user/Yandex.Disk`
+- config dir: `/home/user/.config/yandex-disk`
+
+Example `.env`:
+
+```dotenv
+YANDEX_CONTAINER_NAME=yandex-disk-local
+YANDEX_UID=1000
+YANDEX_GID=1000
+YANDEX_HOST_CONFIG_DIR=/home/user/.config/yandex-disk
+YANDEX_HOST_DATA_DIR=/home/user/Yandex.Disk
+YANDEX_PROXY=
+YANDEX_EXCLUDE_DIRS=
+YANDEX_READ_ONLY=false
+YANDEX_OVERWRITE=false
+```
+
+After removing or stopping the native OS-level `yandex-disk` service, run:
+
+```bash
+cd ~/Documents/yandex-disk-shared
+docker compose up -d --build
+```
+
+Useful checks:
+
+```bash
+docker compose ps
+docker compose logs -f
+docker compose exec yandex-disk yandex-disk status --config=/config/config.cfg --dir=/data --auth=/config/passwd
+```
+
+Important:
+
+- do not run the native OS-level Yandex Disk client and the containerized client against the same sync directory at the same time
+- if you are migrating an existing workstation setup, keep the old `passwd`, `iid`, and sync directory, and change only the execution model
+
 ## Two setup paths
 
 ### Path 1: fresh authorization
@@ -138,11 +182,12 @@ proxy="no"
 The main runtime knobs are in `.env`:
 
 ```dotenv
+YANDEX_IMAGE=yandex-disk-shared:local
 YANDEX_CONTAINER_NAME=yandex-disk-shared
 YANDEX_UID=1000
 YANDEX_GID=1000
 YANDEX_HOST_CONFIG_DIR=/opt/yandex-disk-shared/config
-YANDEX_HOST_DATA_DIR=/opt/yandex-disk-shared/data
+YANDEX_HOST_DATA_DIR=/srv/shared/YandexDisk
 YANDEX_PROXY=
 YANDEX_EXCLUDE_DIRS=
 YANDEX_READ_ONLY=false
@@ -151,6 +196,7 @@ YANDEX_OVERWRITE=false
 
 Notes:
 
+- `YANDEX_IMAGE` lets CI deploy a prebuilt image from your private registry instead of rebuilding on the target host
 - `YANDEX_EXCLUDE_DIRS` overrides `exclude-dirs` from `config.cfg`
 - if `YANDEX_EXCLUDE_DIRS` is empty, the entrypoint falls back to `config.cfg`
 - `YANDEX_PROXY` behaves the same way

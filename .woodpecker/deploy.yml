@@ -38,7 +38,7 @@ steps:
           'YANDEX_OVERWRITE=false' \
           > .env.deploy
       - 'docker pull "$${IMAGE}"'
-      - 'docker run --rm -v /opt/yandex-disk-shared:/target alpine:3.22 sh -lc "mkdir -p /target/config /target/data"'
+      - 'docker run --rm -v /opt/yandex-disk-shared:/target alpine:3.22 sh -lc "mkdir -p /target/config /target/data && chown -R 1000:1000 /target/config /target/data"'
       - 'docker run --rm -i -v /opt/yandex-disk-shared:/target alpine:3.22 sh -lc "cat > /target/docker-compose.yml" < docker-compose.yml'
       - 'docker run --rm -i -v /opt/yandex-disk-shared:/target alpine:3.22 sh -lc "cat > /target/docker-entrypoint.sh && chmod 755 /target/docker-entrypoint.sh" < docker-entrypoint.sh'
       - 'docker run --rm -i -v /opt/yandex-disk-shared:/target alpine:3.22 sh -lc "cat > /target/.env && chmod 600 /target/.env" < .env.deploy'

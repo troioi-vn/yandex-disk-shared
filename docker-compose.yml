@@ -2,6 +2,7 @@ name: yandex-disk-shared
 
 services:
   yandex-disk:
+    image: ${YANDEX_IMAGE:-yandex-disk-shared:local}
     build:
       context: .
     container_name: ${YANDEX_CONTAINER_NAME}

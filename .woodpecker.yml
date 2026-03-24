@@ -1,68 +1,61 @@
 when:
   - event: [push, manual]
-
-labels:
-  hostname: a84032fdfe6e
+    branch: main
 
 steps:
   verify_deploy_files:
     image: alpine:3.22
+    labels:
+      hostname: a84032fdfe6e
     commands:
       - 'test -f Dockerfile'
       - 'test -f docker-compose.yml'
       - 'test -f docker-entrypoint.sh'
       - 'test -f .env.example'
-      - "grep -q 'YANDEX_HOST_CONFIG_DIR' .env.example"
+      - "grep -q 'YANDEX_IMAGE=' .env.example"
+      - "grep -q 'image: \\${YANDEX_IMAGE:-yandex-disk-shared:local}' docker-compose.yml"
       - "grep -q 'YANDEX_CONFIG_FILE: /config/config.cfg' docker-compose.yml"
       - "grep -q 'config/' .gitignore"
 
-  deploy_yandex_disk_shared:
-    image: alpine:3.22
+  build_and_push_image:
+    image: docker:28-cli
+    labels:
+      hostname: a84032fdfe6e
     environment:
-      CATARCHY2_HOST:
-        from_secret: CATARCHY2_HOST
-      CATARCHY2_USER:
-        from_secret: CATARCHY2_USER
-      CATARCHY2_SSH_KEY:
-        from_secret: CATARCHY2_SSH_KEY
+      REGISTRY_AUTH_USERNAME:
+        from_secret: REGISTRY_AUTH_USERNAME
+      REGISTRY_AUTH_PASSWORD:
+        from_secret: REGISTRY_AUTH_PASSWORD
     commands:
-      - 'apk add --no-cache openssh-client'
-      - 'test -n "$${CATARCHY2_HOST}"'
-      - 'test -n "$${CATARCHY2_USER}"'
-      - 'test -n "$${CATARCHY2_SSH_KEY}"'
-      - |
-        umask 077
-        mkdir -p "$$HOME/.ssh"
-        chmod 700 "$$HOME/.ssh"
-        key_input="$${CATARCHY2_SSH_KEY}"
-        key_ok=0
-        printf '%s\n' "$$key_input" | tr -d '\r' > "$$HOME/.ssh/id_ed25519"
-        chmod 600 "$$HOME/.ssh/id_ed25519"
-        if ssh-keygen -y -f "$$HOME/.ssh/id_ed25519" >/dev/null 2>&1; then
-          key_ok=1
-        fi
-        if [ "$$key_ok" -ne 1 ]; then
-          printf '%b' "$$key_input" | tr -d '\r' > "$$HOME/.ssh/id_ed25519"
-          chmod 600 "$$HOME/.ssh/id_ed25519"
-          if ssh-keygen -y -f "$$HOME/.ssh/id_ed25519" >/dev/null 2>&1; then
-            key_ok=1
-          fi
-        fi
-        if [ "$$key_ok" -ne 1 ]; then
-          if printf '%s' "$$key_input" | tr -d '\r\n\t ' | tr -cd 'A-Za-z0-9+/=' | base64 -d > "$$HOME/.ssh/id_ed25519" 2>/dev/null; then
-            chmod 600 "$$HOME/.ssh/id_ed25519"
-            if ssh-keygen -y -f "$$HOME/.ssh/id_ed25519" >/dev/null 2>&1; then
-              key_ok=1
-            fi
-          fi
-        fi
-        if [ "$$key_ok" -ne 1 ]; then
-          echo "CATARCHY2_SSH_KEY is not a valid OpenSSH private key in raw, escaped, or base64 form."
-          exit 1
-        fi
-        ssh-keyscan -H "$${CATARCHY2_HOST}" >> "$$HOME/.ssh/known_hosts"
+      - 'test -n "$${REGISTRY_AUTH_USERNAME}"'
+      - 'test -n "$${REGISTRY_AUTH_PASSWORD}"'
+      - 'printf "%s\n" "$${REGISTRY_AUTH_PASSWORD}" | docker login registry.meo-mai-moi.com -u "$${REGISTRY_AUTH_USERNAME}" --password-stdin'
+      - 'export IMAGE_REPO="registry.meo-mai-moi.com/troioi-vn/yandex-disk-shared"'
+      - 'export IMAGE_TAG="$${CI_COMMIT_SHA}"'
+      - 'export IMAGE="$${IMAGE_REPO}:$${IMAGE_TAG}"'
+      - 'docker build --pull -t "$${IMAGE}" -t "$${IMAGE_REPO}:latest" .'
+      - 'docker push "$${IMAGE}"'
+      - 'docker push "$${IMAGE_REPO}:latest"'
+
+  deploy_on_caterver:
+    image: docker:28-cli
+    labels:
+      hostname: caterver
+    depends_on:
+      - build_and_push_image
+    environment:
+      REGISTRY_AUTH_USERNAME:
+        from_secret: REGISTRY_AUTH_USERNAME
+      REGISTRY_AUTH_PASSWORD:
+        from_secret: REGISTRY_AUTH_PASSWORD
+    commands:
+      - 'test -n "$${REGISTRY_AUTH_USERNAME}"'
+      - 'test -n "$${REGISTRY_AUTH_PASSWORD}"'
+      - 'printf "%s\n" "$${REGISTRY_AUTH_PASSWORD}" | docker login registry.meo-mai-moi.com -u "$${REGISTRY_AUTH_USERNAME}" --password-stdin'
+      - 'export IMAGE="registry.meo-mai-moi.com/troioi-vn/yandex-disk-shared:$${CI_COMMIT_SHA}"'
       - |
         printf '%s\n' \
+          "YANDEX_IMAGE=$${IMAGE}" \
           'YANDEX_CONTAINER_NAME=yandex-disk-shared' \
           'YANDEX_UID=1000' \
           'YANDEX_GID=1000' \
@@ -73,24 +66,15 @@ steps:
           'YANDEX_READ_ONLY=false' \
           'YANDEX_OVERWRITE=false' \
           > .env.deploy
-      - 'scp Dockerfile "$${CATARCHY2_USER}@$${CATARCHY2_HOST}:/tmp/yandex-disk-shared-Dockerfile"'
-      - 'scp docker-compose.yml "$${CATARCHY2_USER}@$${CATARCHY2_HOST}:/tmp/yandex-disk-shared-docker-compose.yml"'
-      - 'scp docker-entrypoint.sh "$${CATARCHY2_USER}@$${CATARCHY2_HOST}:/tmp/yandex-disk-shared-entrypoint.sh"'
-      - 'scp .env.deploy "$${CATARCHY2_USER}@$${CATARCHY2_HOST}:/tmp/yandex-disk-shared.env"'
+      - 'docker pull "$${IMAGE}"'
       - |
-        ssh "$${CATARCHY2_USER}@$${CATARCHY2_HOST}" '
-          sudo -n mkdir -p /opt/yandex-disk-shared/config /opt/yandex-disk-shared/data &&
-          sudo -n chown -R ubuntu:ubuntu /opt/yandex-disk-shared &&
-          sudo -n mv /tmp/yandex-disk-shared-Dockerfile /opt/yandex-disk-shared/Dockerfile &&
-          sudo -n mv /tmp/yandex-disk-shared-docker-compose.yml /opt/yandex-disk-shared/docker-compose.yml &&
-          sudo -n mv /tmp/yandex-disk-shared-entrypoint.sh /opt/yandex-disk-shared/docker-entrypoint.sh &&
-          sudo -n mv /tmp/yandex-disk-shared.env /opt/yandex-disk-shared/.env &&
-          sudo -n chmod 600 /opt/yandex-disk-shared/.env &&
-          sudo -n chmod 755 /opt/yandex-disk-shared/docker-entrypoint.sh &&
-          cd /opt/yandex-disk-shared &&
-          sudo -n docker compose --env-file /opt/yandex-disk-shared/.env build --pull &&
-          sudo -n docker compose --env-file /opt/yandex-disk-shared/.env up -d &&
-          timeout 120 sh -c "until sudo -n docker inspect -f {{.State.Running}} yandex-disk-shared 2>/dev/null | grep -q true; do sleep 3; done" &&
-          sudo -n docker compose --env-file /opt/yandex-disk-shared/.env ps
-        '
+        docker run --rm \
+          -v /opt/yandex-disk-shared:/target \
+          -v "$${PWD}:/src" \
+          alpine:3.22 \
+          sh -lc "mkdir -p /target/config /target/data && cp /src/docker-compose.yml /target/docker-compose.yml && cp /src/docker-entrypoint.sh /target/docker-entrypoint.sh && cp /src/.env.deploy /target/.env && chmod 755 /target/docker-entrypoint.sh && chmod 600 /target/.env"
+      - 'docker compose --env-file .env.deploy -f docker-compose.yml up -d --force-recreate'
+      - 'timeout 120 sh -c "until [ \"$(docker inspect -f ''{{.State.Running}}'' yandex-disk-shared 2>/dev/null)\" = \"true\" ]; do sleep 3; done"'
+      - 'docker compose --env-file .env.deploy -f docker-compose.yml ps'
+      - 'docker logs --tail 40 yandex-disk-shared'
       - 'rm -f .env.deploy'

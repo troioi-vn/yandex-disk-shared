@@ -13,7 +13,7 @@ steps:
       - 'test -f docker-entrypoint.sh'
       - 'test -f .env.example'
       - "grep -q 'YANDEX_IMAGE=' .env.example"
-      - "grep -q 'image: \\${YANDEX_IMAGE:-yandex-disk-shared:local}' docker-compose.yml"
+      - 'grep -Fq ''image: ${YANDEX_IMAGE:-yandex-disk-shared:local}'' docker-compose.yml'
       - "grep -q 'YANDEX_CONFIG_FILE: /config/config.cfg' docker-compose.yml"
       - "grep -q 'config/' .gitignore"
 

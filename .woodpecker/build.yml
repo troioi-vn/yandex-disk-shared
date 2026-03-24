@@ -1,0 +1,39 @@
+when:
+  - event: [push, manual]
+    branch: main
+
+labels:
+  hostname: a84032fdfe6e
+
+steps:
+  - name: verify_deploy_files
+    image: alpine:3.22
+    commands:
+      - 'test -f Dockerfile'
+      - 'test -f docker-compose.yml'
+      - 'test -f docker-entrypoint.sh'
+      - 'test -f .env.example'
+      - "grep -q 'YANDEX_IMAGE=' .env.example"
+      - 'grep -Fq ''image: ${YANDEX_IMAGE:-yandex-disk-shared:local}'' docker-compose.yml'
+      - "grep -q 'YANDEX_CONFIG_FILE: /config/config.cfg' docker-compose.yml"
+      - "grep -q 'config/' .gitignore"
+
+  - name: build_and_push_image
+    image: docker:28-cli
+    depends_on:
+      - verify_deploy_files
+    environment:
+      REGISTRY_AUTH_USERNAME:
+        from_secret: REGISTRY_AUTH_USERNAME
+      REGISTRY_AUTH_PASSWORD:
+        from_secret: REGISTRY_AUTH_PASSWORD
+    commands:
+      - 'test -n "$${REGISTRY_AUTH_USERNAME}"'
+      - 'test -n "$${REGISTRY_AUTH_PASSWORD}"'
+      - 'printf "%s\n" "$${REGISTRY_AUTH_PASSWORD}" | docker login registry.meo-mai-moi.com -u "$${REGISTRY_AUTH_USERNAME}" --password-stdin'
+      - 'export IMAGE_REPO="registry.meo-mai-moi.com/troioi-vn/yandex-disk-shared"'
+      - 'export IMAGE_TAG="$${CI_COMMIT_SHA}"'
+      - 'export IMAGE="$${IMAGE_REPO}:$${IMAGE_TAG}"'
+      - 'docker build --pull -t "$${IMAGE}" -t "$${IMAGE_REPO}:latest" .'
+      - 'docker push "$${IMAGE}"'
+      - 'docker push "$${IMAGE_REPO}:latest"'

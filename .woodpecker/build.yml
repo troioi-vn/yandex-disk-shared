@@ -22,6 +22,8 @@ steps:
     image: docker:28-cli
     depends_on:
       - verify_deploy_files
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
     environment:
       REGISTRY_AUTH_USERNAME:
         from_secret: REGISTRY_AUTH_USERNAME

@@ -37,12 +37,10 @@ steps:
           'YANDEX_OVERWRITE=false' \
           > .env.deploy
       - 'docker pull "$${IMAGE}"'
-      - |
-        docker run --rm \
-          -v /opt/yandex-disk-shared:/target \
-          -v "$${PWD}:/src" \
-          alpine:3.22 \
-          sh -lc "mkdir -p /target/config /target/data && cp /src/docker-compose.yml /target/docker-compose.yml && cp /src/docker-entrypoint.sh /target/docker-entrypoint.sh && cp /src/.env.deploy /target/.env && chmod 755 /target/docker-entrypoint.sh && chmod 600 /target/.env"
+      - 'docker run --rm -v /opt/yandex-disk-shared:/target alpine:3.22 sh -lc "mkdir -p /target/config /target/data"'
+      - 'docker run --rm -i -v /opt/yandex-disk-shared:/target alpine:3.22 sh -lc "cat > /target/docker-compose.yml" < docker-compose.yml'
+      - 'docker run --rm -i -v /opt/yandex-disk-shared:/target alpine:3.22 sh -lc "cat > /target/docker-entrypoint.sh && chmod 755 /target/docker-entrypoint.sh" < docker-entrypoint.sh'
+      - 'docker run --rm -i -v /opt/yandex-disk-shared:/target alpine:3.22 sh -lc "cat > /target/.env && chmod 600 /target/.env" < .env.deploy'
       - 'docker compose --env-file .env.deploy -f docker-compose.yml up -d --force-recreate'
       - 'timeout 120 sh -c "until [ \"$(docker inspect -f ''{{.State.Running}}'' yandex-disk-shared 2>/dev/null)\" = \"true\" ]; do sleep 3; done"'
       - 'docker compose --env-file .env.deploy -f docker-compose.yml ps'

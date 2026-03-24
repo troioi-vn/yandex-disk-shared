@@ -1,0 +1,49 @@
+when:
+  - event: [push, manual]
+    branch: main
+
+depends_on:
+  - build
+
+labels:
+  hostname: a84032fdfe6e
+
+steps:
+  - name: deploy_on_catarchy2
+    image: docker:28-cli
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /opt/yandex-disk-shared:/opt/yandex-disk-shared
+    environment:
+      REGISTRY_AUTH_USERNAME:
+        from_secret: REGISTRY_AUTH_USERNAME
+      REGISTRY_AUTH_PASSWORD:
+        from_secret: REGISTRY_AUTH_PASSWORD
+    commands:
+      - 'test -n "$${REGISTRY_AUTH_USERNAME}"'
+      - 'test -n "$${REGISTRY_AUTH_PASSWORD}"'
+      - 'printf "%s\n" "$${REGISTRY_AUTH_PASSWORD}" | docker login registry.meo-mai-moi.com -u "$${REGISTRY_AUTH_USERNAME}" --password-stdin'
+      - 'export IMAGE="registry.meo-mai-moi.com/troioi-vn/yandex-disk-shared:$${CI_COMMIT_SHA}"'
+      - |
+        printf '%s\n' \
+          "YANDEX_IMAGE=$${IMAGE}" \
+          'YANDEX_CONTAINER_NAME=yandex-disk-shared' \
+          'YANDEX_UID=1000' \
+          'YANDEX_GID=1000' \
+          'YANDEX_HOST_CONFIG_DIR=/opt/yandex-disk-shared/config' \
+          'YANDEX_HOST_DATA_DIR=/opt/yandex-disk-shared/data' \
+          'YANDEX_PROXY=' \
+          'YANDEX_EXCLUDE_DIRS=' \
+          'YANDEX_READ_ONLY=false' \
+          'YANDEX_OVERWRITE=false' \
+          > .env.deploy
+      - 'docker pull "$${IMAGE}"'
+      - 'docker run --rm -v /opt/yandex-disk-shared:/target alpine:3.22 sh -lc "mkdir -p /target/config /target/data && chown -R 1000:1000 /target/config /target/data"'
+      - 'docker run --rm -i -v /opt/yandex-disk-shared:/target alpine:3.22 sh -lc "cat > /target/docker-compose.yml" < docker-compose.yml'
+      - 'docker run --rm -i -v /opt/yandex-disk-shared:/target alpine:3.22 sh -lc "cat > /target/docker-entrypoint.sh && chmod 755 /target/docker-entrypoint.sh" < docker-entrypoint.sh'
+      - 'docker run --rm -i -v /opt/yandex-disk-shared:/target alpine:3.22 sh -lc "cat > /target/.env && chmod 600 /target/.env" < .env.deploy'
+      - 'docker compose --env-file /opt/yandex-disk-shared/.env -f /opt/yandex-disk-shared/docker-compose.yml up -d --force-recreate'
+      - 'timeout 120 sh -c "until [ \"$(docker inspect -f ''{{.State.Running}}'' yandex-disk-shared 2>/dev/null)\" = \"true\" ]; do sleep 3; done"'
+      - 'docker compose --env-file /opt/yandex-disk-shared/.env -f /opt/yandex-disk-shared/docker-compose.yml ps'
+      - 'docker logs --tail 40 yandex-disk-shared'
+      - 'rm -f .env.deploy'

@@ -3,7 +3,7 @@ when:
     branch: main
 
 labels:
-  hostname: a84032fdfe6e
+  hostname: catarchy2
 
 steps:
   - name: verify_deploy_files

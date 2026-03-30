@@ -6,7 +6,7 @@ depends_on:
   - build
 
 labels:
-  hostname: a84032fdfe6e
+  hostname: catarchy2
 
 steps:
   - name: deploy_on_catarchy2

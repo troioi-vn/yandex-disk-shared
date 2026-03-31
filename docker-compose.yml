@@ -26,7 +26,3 @@ services:
       - ${YANDEX_HOST_CONFIG_DIR}:/config
       - ${YANDEX_HOST_CONFIG_DIR}:/home/ubuntu/.config/yandex-disk
       - ${YANDEX_HOST_DATA_DIR}:/data
-      - /opt/shared-postgres/backups:/data/catarchy2_backup/shared-postgres-backups:ro
-      - /opt/shared-mariadb/backups:/data/catarchy2_backup/shared-mariadb-backups:ro
-      - /var/backups/catarchy2-restic-meta:/data/catarchy2_backup/catarchy2-restic-meta:ro
-      - /var/log/catarchy2-restic-backup.log:/data/catarchy2_backup/catarchy2-restic-backup.log:ro

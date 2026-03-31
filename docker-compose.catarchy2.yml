@@ -1,0 +1,7 @@
+services:
+  yandex-disk:
+    volumes:
+      - /opt/shared-postgres/backups:/data/catarchy2_backup/shared-postgres-backups:ro
+      - /opt/shared-mariadb/backups:/data/catarchy2_backup/shared-mariadb-backups:ro
+      - /var/backups/catarchy2-restic-meta:/data/catarchy2_backup/catarchy2-restic-meta:ro
+      - /var/log/catarchy2-restic-backup.log:/data/catarchy2_backup/catarchy2-restic-backup.log:ro

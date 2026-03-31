@@ -11,6 +11,7 @@ steps:
     commands:
       - 'test -f Dockerfile'
       - 'test -f docker-compose.yml'
+      - 'test -f docker-compose.catarchy2.yml'
       - 'test -f docker-entrypoint.sh'
       - 'test -f .env.example'
       - "grep -q 'YANDEX_IMAGE=' .env.example"

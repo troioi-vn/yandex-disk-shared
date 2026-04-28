@@ -22,8 +22,8 @@ steps:
     commands:
       - 'test -n "$${REGISTRY_AUTH_USERNAME}"'
       - 'test -n "$${REGISTRY_AUTH_PASSWORD}"'
-      - 'printf "%s\n" "$${REGISTRY_AUTH_PASSWORD}" | docker login registry.meo-mai-moi.com -u "$${REGISTRY_AUTH_USERNAME}" --password-stdin'
-      - 'export IMAGE="registry.meo-mai-moi.com/troioi-vn/yandex-disk-shared:$${CI_COMMIT_SHA}"'
+      - 'printf "%s\n" "$${REGISTRY_AUTH_PASSWORD}" | docker login registry.int.catarchy.space -u "$${REGISTRY_AUTH_USERNAME}" --password-stdin'
+      - 'export IMAGE="registry.int.catarchy.space/troioi-vn/yandex-disk-shared:$${CI_COMMIT_SHA}"'
       - |
         printf '%s\n' \
           "YANDEX_IMAGE=$${IMAGE}" \

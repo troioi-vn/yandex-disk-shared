@@ -5,6 +5,9 @@ when:
 depends_on:
   - build
 
+labels:
+  ci-role: yandex-runtime
+
 steps:
   - name: deploy
     image: docker:28-cli

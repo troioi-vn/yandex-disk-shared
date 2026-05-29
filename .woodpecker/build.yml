@@ -2,6 +2,9 @@ when:
   - event: [push, manual]
     branch: main
 
+labels:
+  ci-role: registry-builder
+
 steps:
   - name: verify_deploy_files
     image: alpine:3.22

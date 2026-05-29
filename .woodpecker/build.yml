@@ -2,16 +2,12 @@ when:
   - event: [push, manual]
     branch: main
 
-labels:
-  hostname: catarchy2
-
 steps:
   - name: verify_deploy_files
     image: alpine:3.22
     commands:
       - 'test -f Dockerfile'
       - 'test -f docker-compose.yml'
-      - 'test -f docker-compose.catarchy2.yml'
       - 'test -f docker-entrypoint.sh'
       - 'test -f .env.example'
       - "grep -q 'YANDEX_IMAGE=' .env.example"
@@ -30,11 +26,16 @@ steps:
         from_secret: REGISTRY_AUTH_USERNAME
       REGISTRY_AUTH_PASSWORD:
         from_secret: REGISTRY_AUTH_PASSWORD
+      REGISTRY_HOST:
+        from_secret: REGISTRY_HOST
+      IMAGE_REPO:
+        from_secret: IMAGE_REPO
     commands:
       - 'test -n "$${REGISTRY_AUTH_USERNAME}"'
       - 'test -n "$${REGISTRY_AUTH_PASSWORD}"'
-      - 'printf "%s\n" "$${REGISTRY_AUTH_PASSWORD}" | docker login registry.int.catarchy.space -u "$${REGISTRY_AUTH_USERNAME}" --password-stdin'
-      - 'export IMAGE_REPO="registry.int.catarchy.space/troioi-vn/yandex-disk-shared"'
+      - 'test -n "$${REGISTRY_HOST}"'
+      - 'test -n "$${IMAGE_REPO}"'
+      - 'printf "%s\n" "$${REGISTRY_AUTH_PASSWORD}" | docker login "$${REGISTRY_HOST}" -u "$${REGISTRY_AUTH_USERNAME}" --password-stdin'
       - 'export IMAGE_TAG="$${CI_COMMIT_SHA}"'
       - 'export IMAGE="$${IMAGE_REPO}:$${IMAGE_TAG}"'
       - 'docker build --pull -t "$${IMAGE}" -t "$${IMAGE_REPO}:latest" .'

@@ -36,7 +36,7 @@ That means `config/` and `data/` are intentionally not committed.
 Typical deployed layout:
 
 ```text
-/opt/yandex-disk-shared/
+<deploy-path>/
   Dockerfile
   docker-compose.yml
   docker-entrypoint.sh
@@ -186,8 +186,8 @@ YANDEX_IMAGE=yandex-disk-shared:local
 YANDEX_CONTAINER_NAME=yandex-disk-shared
 YANDEX_UID=1000
 YANDEX_GID=1000
-YANDEX_HOST_CONFIG_DIR=/opt/yandex-disk-shared/config
-YANDEX_HOST_DATA_DIR=/srv/shared/YandexDisk
+YANDEX_HOST_CONFIG_DIR=<host-config-dir>
+YANDEX_HOST_DATA_DIR=<host-sync-dir>
 YANDEX_PROXY=
 YANDEX_EXCLUDE_DIRS=
 YANDEX_READ_ONLY=false
@@ -232,8 +232,8 @@ docker compose exec yandex-disk sh -lc 'tail -n 120 /data/.sync/core.log'
 See whether files are appearing:
 
 ```bash
-find /opt/yandex-disk-shared/data -maxdepth 1 -mindepth 1
-du -sh /opt/yandex-disk-shared/data
+find <host-sync-dir> -maxdepth 1 -mindepth 1
+du -sh <host-sync-dir>
 ```
 
 ## Troubleshooting
@@ -260,7 +260,7 @@ If those lines are missing, the runtime path is not using the exclude list you t
 Make sure `iid` is also present under the mounted config directory:
 
 ```bash
-ls -la /opt/yandex-disk-shared/config
+ls -la <host-config-dir>
 ```
 
 ### Docker logs are quiet
@@ -276,26 +276,29 @@ That message is not always literal. On this legacy client it can also show up du
 
 ## Woodpecker deployment
 
-This repo includes `.woodpecker.yml` for SSH-based deployment to `catarchy2`.
+This repo includes `.woodpecker.yml` as an example SSH-based deployment flow.
+Environment-specific hostnames, SSH users, private registry names, deploy paths,
+and data directories should be supplied through CI secrets or private operator
+documentation.
 
 The deployment model is:
 
 - upload `Dockerfile`, `docker-compose.yml`, `docker-entrypoint.sh`, and `.env`
-- preserve `/opt/yandex-disk-shared/config`
-- preserve `/opt/yandex-disk-shared/data`
+- preserve the configured host config directory
+- preserve the configured host sync directory
 - rebuild and recreate the container on the target server
 
 This is intentionally stateful. CI updates the recipe, not the synced data.
 
-## Example live checks on `catarchy2`
+## Example live checks
 
 ```bash
-cd /opt/yandex-disk-shared
+cd <deploy-path>
 sudo docker compose --env-file .env ps
 sudo docker exec yandex-disk-shared yandex-disk status --config=/config/config.cfg --dir=/data --auth=/config/passwd
 sudo docker exec yandex-disk-shared sh -lc 'tail -n 80 /data/.sync/cli.log'
 sudo docker exec yandex-disk-shared sh -lc 'tail -n 120 /data/.sync/core.log'
-sudo find /opt/yandex-disk-shared/data -maxdepth 1 -mindepth 1
+sudo find <host-sync-dir> -maxdepth 1 -mindepth 1
 ```
 
 ## Why this may be useful to others

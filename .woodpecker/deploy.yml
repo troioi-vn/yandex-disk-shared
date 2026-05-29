@@ -13,7 +13,6 @@ steps:
     image: docker:28-cli
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-      - $${YANDEX_DEPLOY_PATH}:$${YANDEX_DEPLOY_PATH}
     environment:
       REGISTRY_AUTH_USERNAME:
         from_secret: REGISTRY_AUTH_USERNAME
@@ -54,7 +53,7 @@ steps:
       - 'docker run --rm -i -v "$${YANDEX_DEPLOY_PATH}:/target" alpine:3.22 sh -lc "cat > /target/docker-compose.yml" < docker-compose.yml'
       - 'docker run --rm -i -v "$${YANDEX_DEPLOY_PATH}:/target" alpine:3.22 sh -lc "cat > /target/docker-entrypoint.sh && chmod 755 /target/docker-entrypoint.sh" < docker-entrypoint.sh'
       - 'docker run --rm -i -v "$${YANDEX_DEPLOY_PATH}:/target" alpine:3.22 sh -lc "cat > /target/.env && chmod 600 /target/.env" < .env.deploy'
-      - 'docker compose --env-file "$${YANDEX_DEPLOY_PATH}/.env" -f "$${YANDEX_DEPLOY_PATH}/docker-compose.yml" up -d --force-recreate'
+      - 'docker compose --env-file .env.deploy -f docker-compose.yml up -d --force-recreate'
       - 'timeout 120 sh -c "until [ \"$(docker inspect -f ''{{.State.Running}}'' yandex-disk-shared 2>/dev/null)\" = \"true\" ]; do sleep 3; done"'
       - 'docker compose --env-file .env.deploy -f docker-compose.yml ps'
       - 'docker logs --tail 40 yandex-disk-shared'
